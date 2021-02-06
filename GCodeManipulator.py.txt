@@ -1,0 +1,409 @@
+import logging, sys
+
+#sys.argv[0] is the first variable, sys.argv[1]
+
+
+#print variables
+heightofpart = 9	#in mm
+heightofeachpart = 9	#in mm
+bedtemp = 50
+extrudertemp = 195
+
+#parameters
+partnumber = sys.argv[1]
+inputfile = sys.argv[2]
+layerheight = sys.argv[3]
+retractionamount = sys.argv[4]
+
+#operation variables
+prefixactive = 1
+bodyactive = 0
+suffixactive = 0
+#extrustionpreviousmax = 0
+loopCounter = 1
+zvariable = 0
+dontprintflag = 0
+zprevvariable = 0
+
+
+#file variables
+#inputfile = "C:\\Users\\christopher.slice\\Desktop\\Chris\\Hobbies\\Wade's Project\\GCode\\60deg1profile1.gcode"
+
+#outputfile = "C:\\Users\\christopher.slice\\Desktop\\Chris\\Hobbies\\Wade's Project\\GCode\\60deg1_GCODEALTERED.txt"
+outputfile = "/home/pi/3dprinting/gcodetotransfer/output" + str(partnumber) + ".gcode"
+
+#variablefile = "C:\\Users\\christopher.slice\\Desktop\\Chris\\Hobbies\\Wade's Project\\Gcode\\variables.txt"
+variablefile = "/home/pi/3dprinting/variables.txt"
+
+#removing end points variables
+#retractionamount is a parameter
+foundcornerflag = "0"
+lastgoode = "0"
+lastbade = "0"
+zmovesavedvalue = "Z4.5"
+previousfoundeCorner = "0"
+zmovedsavedflag = "0"
+ongoingeoffset = "0"
+evariable = 0
+
+#wait(python ~/3dprinting/gcodeManipulator.py $gcodeoutput)
+#need to write files to ~/3dprinting/gcodetotransfer/##.gcode
+print("input file, sys.argv[0] is:")
+print(inputfile)
+print("partnumber, sys.argv[1] is:")
+print(partnumber)
+print("sys.argv[2]")
+print(sys.argv[2])
+print("layer height is")
+print(sys.argv[3])
+
+#assumes the following is in vvariables
+#PartNumber:1
+#ZValue:0
+#heightoffixrstpart:18
+#end line
+
+#read in partnumber, zvariable, heightoffirstpart from variablefile
+with open(variablefile, 'r') as varReader:
+	variables = varReader.readlines()
+for variableline in variables:
+	if variableline.find("ZValue") <> -1:
+		zprevvariable = variableline[variableline.find(":") + 1: len(variableline) - 1]
+	#elif variableline.find("PartNumber") <> -1:
+	#    partnumber = variableline[variableline.find(":") + 1: len(variableline) - 1]
+	elif variableline.find("heightoffirstpart") <> -1:
+		heightoffirstpart = variableline[variableline.find(":") + 1 : len(variableline) - 1]
+	#end if 
+#end For
+if str(partnumber) == "1":
+	zprevvariable = "0"
+	zvariable = "0"
+	heightoffirstpart = "0"
+#end if
+
+with open(inputfile, 'r') as sr:
+	data = sr.readlines()
+
+print("i am printing to file: " + outputfile)
+with open(outputfile, 'w') as sw:
+	for line in data:
+		#if line.find(";") <> -1:
+		#	print("i found a comment line: " + line)
+		if line.find(";LAYER:0") <> -1:
+			prefixactive = 0
+			bodyactive = 1
+			line = line + ";PART " + str(partnumber) + "\n"
+		#end if
+
+		#for raft
+		if line.find(";LAYER:-2") <> -1:
+			prefixactive = 0
+			bodyactive = 1
+		#end if
+
+		#find bad line
+		if line[0: 1] == "G" and bodyactive == 1:
+			
+			xvariable = -1
+			yvariable = -1
+			#evariable = 0
+			
+			#find value of z if it exists
+			if line.find("Z") <> -1:
+				indexofz = line.find("Z")
+				zvariable = line[indexofz+1: len(line) - 1]
+				if line.find("Z1.72") <> -1:
+					ongoingeoffset = str(float(ongoingeoffset) + float(retractionamount)/1000)
+				#end if
+			#end if
+
+			indexofX = line.find("X")
+			indexofY = line.find("Y")
+			indexofEVar = line.find("E")
+			
+			#find the value of x
+			if line.find("X") <> -1:
+				workingSubstring = line[indexofX: len(line) - 1]
+				indexofspace = workingSubstring.find(" ")
+				xvariable = workingSubstring[1: indexofspace]
+			#end if
+
+			#find the value of y
+			if line.find("Y") <> -1:
+				workingSubstring = line[indexofY: len(line) - 1]
+				indexofspace = workingSubstring.find(" ")
+				yvariable = workingSubstring[1: indexofspace]
+			#end if
+
+			#find value of e
+			if line.find("E") <> -1:
+				workingSubstring = line[indexofEVar: len(line) - 1]
+				evariable = workingSubstring[1: len(line) - 1]
+			#end if
+
+#			if float(xvariable) > 114 or float(yvariable) > 114 or float(yvariable) < 6 or float(xvariable) < 6:
+#				print(str(float(xvariable)) + " " + str(float(yvariable)))
+			
+			#end if
+
+			if float(xvariable) < 6 or float(xvariable) > 114:
+				if xvariable <> -1:
+					xoutofbounds = 1
+				else:
+					xoutofbounds = 0
+				#end if
+			else:
+				xoutofbounds = 0
+			#end if
+
+			if float(yvariable) < 6 or float(yvariable) > 114:
+				if yvariable <> -1:
+					youtofbounds = 1
+				else:
+					youtofbounds = 0
+				#end if
+			else:
+				youtofbounds = 0
+			#end if
+			
+			if line.find("X") == -1 and line.find("Y") == -1 and foundcornerflag == "1":
+				badLine = 1
+			
+			else:
+				badLine = 0
+			#end if
+
+			#Checking to see if current line is good or bad
+			if xoutofbounds == 1 or youtofbounds == 1 or badLine == 1:
+				#we only want to set the last good e found if  it wasn't previous bad
+				if foundcornerflag == "0":
+					print("------------------changed from good to bad at line")
+					print(line)
+					#this is the iteration through the flag - this is the first bad line since we had good oens
+					lastgoode = evariable
+				#endif
+
+				if line.find("Z") <> -1:
+					zmovesavedvalue = zvariable
+					print("zmovesavedvalue = zvariable = " + str(zvariable))
+					zmovedsavedflag = "1"
+				#end if
+
+				foundcornerflag = "1"			
+			else:
+				#we only want to set the last bad e if it wasn't previously good
+				if str(foundcornerflag) == "1":
+					print("------------------------changed from bad to good at line")
+					print(line)
+					lastbade = evariable
+					print("last bad e is" + str(lastbade))
+					#using lastgood and last bad, add to the e offset
+					print("ongoingeoffset just changed from ")
+					print(ongoingeoffset)
+					ongoingeoffset = str(float(ongoingeoffset) + float(lastbade) - float(lastgoode))
+					print(ongoingeoffset)
+					#do an e move by -{retractionamount}
+					print("zmovesavedvalue = " + str(zmovesavedvalue))
+					#disabled code to do retraction fixing after bad lines
+					#if float(zmovesavedvalue) <> 0.3:
+						#sw.write("G1 F2400 E" + str(float(lastgoode) - float(ongoingeoffset) - float(retractionamount)/1000) + "; " + str(float(ongoingeoffset)) + " " +str(float(lastgoode)) + "-" + str(float(retractionamount)/1000)+ "\n")
+					#end if
+
+					
+					if zmovedsavedflag == "1":
+						#append the saved z move
+						line = line[0:len(line)-2]
+						print("setting line = " + str(line))
+						line = line + " Z" + str(zmovesavedvalue)
+						print("line = " + str(line))
+						zmovedsavedflag = "0"
+					#end if
+				#end if
+
+				foundcornerflag = "0"
+			#end if
+		#end if
+
+		#todo if bad line
+			#dont write
+		
+		#todo if good line
+			#add a z move to the end of this first lin
+			#start writing, but every e that is written has to have e offset applied
+			
+		firsthalf = ""
+		secondhalf = ""
+		prevNumber = ""
+
+		#change whatever e is to e - ongoingeoffset
+		if line.find("E") <> -1 and line.find(";") > line.find("E"):
+			firsthalf = line[0:line.find("E") + 1]
+			offsetWorkingString = line[line.find("E"):len(line) - 1]
+			if offsetWorkingString.find(" ") == -1:
+				firstspaceafterE = len(offsetWorkingString) - 1	
+			else:
+				firstspaceafterE = offsetWorkingString.find(" ")
+			#end if	
+			prevNumber = line[line.find("E") + 1: line.find("E") + firstspaceafterE]
+			
+			
+			secondhalf = line[line.find("E") + firstspaceafterE: len(line) - 1]
+			print("first half = " + firsthalf)
+			print("second half = " + secondhalf)
+			print("prevNumber = " + prevNumber)			
+			if prevNumber == -1:
+				print(line)
+				print("the above live was because prevNumber was -1")
+			else:
+				line = firsthalf + str(float(prevNumber) + float(ongoingeoffset)) + secondhalf + "\n"
+			#end if
+		#end if
+
+
+		#z found in the body and not a bad line
+		if line.find(" Z") <> -1 and bodyactive and foundcornerflag <> "1":
+			indexOfZ = line.find("Z")
+			lengthOfNumber = len(line) - 1 - indexOfZ
+			#len(line[indexOfZ + 1: len(line) - indexOfZ])
+
+			print("attempting to set zvariables with line: ")
+			print(line)
+			zvariable = float(line[indexOfZ + 1: lengthOfNumber + indexOfZ])
+
+			if (str(partnumber) == "1"):
+				zvariable = float(zvariable) + (int(partnumber) - 1) * float(heightofeachpart)
+			else:
+				zvariable = float(zvariable) + float(heightoffirstpart) + (int(partnumber) - 2) * float(heightofeachpart)
+			#end if
+
+			if loopCounter == 1:
+				zprevvariable = zvariable
+			
+			#zvariable = zvariable + float(heightoffirstpart) + (int(partnumber) - 1) * float(heightofeachpart)
+
+			#make sure that heightoffirstpart gets set after only the first part. make sure that heightofeachpart is correct
+
+			#is this a command that designates the end of the body?
+			print ("testing to see if zvariable is 3 gretaer than z prev variable")
+			if (float(zvariable) - 3.0 > float(zprevvariable)):
+				suffixactive = 1
+				bodyactive = 0
+				print("zvariable is 3 greater than zprevvariable")				
+
+				print("zvariable is currently " + str(zvariable))
+				print("prev variable is currently " + str(zprevvariable))
+				print("zvariable gets set to the value of zprevvariable")
+				#save zprevvariable and revert zvariable back to the last one
+				zvariable = str(zprevvariable)
+				
+				#write zvariable, partnumber, heightoffirstpart to slicervariables 
+				with open(variablefile, 'r') as varReader:
+					variables = varReader.readlines()
+				with open(variablefile, 'w') as varWriter:
+					for variableline in variables:
+						if variableline.find("ZValue") <> -1:
+							print("we are writing zvalue = " + str(zvariable))
+							varWriter.write("ZValue:" + str(zvariable) + "\n")
+						elif variableline.find("PartNumber") <> -1:
+							varWriter.write("PartNumber:" + str(int(partnumber) + 1) + "\n")
+						elif variableline.find("heightoffirstpart") <> -1:
+							if str(partnumber) == "1":
+								varWriter.write("heightoffirstpart:" + str(zvariable) + "\n")
+								#varWriter.write("this should be the first time through..." + "\n")
+								print("height of first part is said to be" + str(zvariable)) 
+							else:
+								print("height of first part is said to be" + str(heightoffirstpart))
+								#varWriter.write("this is the second or mor time through because partnumber is " + str(partnumber) + "\n")
+								varWriter.write("heightoffirstpart:" + str(heightoffirstpart) + "\n")
+							#end if
+						#end if
+					#end for
+				#end with
+			else:
+				print("zprevvariable is close enough to zvariable")
+				line = line[0: indexOfZ]
+				line = line + "Z" + str(zvariable) + "\n"
+				print("we just changed zprevvariable from " + str(zprevvariable) + " to " + str(zvariable))
+				zprevvariable = str(zvariable)
+			#end if 
+		#end if (line contains Z and is in the body)
+	
+#if the line has a new z, then set zvariable = z value
+#when that happens, set zprevvariable = z value FIRST. then, test the difference
+#if the idfference is greater than say, .5, then trigger in suffix
+
+		if loopCounter == 1:
+		#the first time this program is executed, these lines need to be written
+			writestring = ";Beginning of part number " + str(partnumber) + "\n"
+			sw.write(writestring)
+			sw.write("G92 E0                ; zero the extruded length again\n")
+			loopCounter = 2
+			if int(partnumber) > 1:
+				#sw.write("G1 F2400 E4.0		;push the filament back out for the next part\n")
+				sw.write("G92 E0	; zero the extruded length again\n")
+			#end if		
+		#elif loopCounter > 1:
+
+		#end if
+
+		if int(partnumber) == 1 and foundcornerflag <> "1":
+		#if we are on partnumber 1, we write everything except for the suffix
+			if suffixactive == 0:
+				if line.find("M109 S210") <> -1:
+					sw.write("M190 S" + str(bedtemp) + "	;BED TEMP\n")
+					sw.write("M109 S" + str(extrudertemp) + "	;EXTRUDER TEMP\n")
+					print("i just chaned the temperature")
+					#M190 S$BEDTEMP
+					#M109 S$EXTRUDERTEMP
+				else:
+					if (line.find(";") < line.find("E")) and line.find(";") <> -1:
+												sw.write(line)
+										else:
+											if line.find("E") <> -1 and bodyactive == 1:
+							if line.find("G1 F200 E5.0") <> -1 and line.find(";extrude 5mm of feed stock") <> -1:
+								sw.write("G1 F200 E2.0 ;extruding less stock to avoid a mess\n")
+							else:
+													#take the e and subtract the e offset
+														eEdit = line[line.find("E") + 1: len(line) - 1]
+														line = line[0: line.find("E") + 1]
+														eEdit = str(float(eEdit) - float(ongoingeoffset))
+														sw.write(line + str(eEdit) + ";eEdit is  " + str(float(eEdit)) + ", ongoing offset is "+ str(float(ongoingeoffset))  + "\n")
+													#end if
+						else:
+							if line.find("G1 F200 E5.0") <> -1 and line.find(";extrude 5mm of feed stock") <> -1:
+								sw.write("G1 F200 E2.0 ;extruding less stock to avoid a mess\n")	
+							else:
+															sw.write(line)
+							#end if
+												#end if
+										#end if
+
+				#endif
+			#end if
+		elif int(partnumber) > 1 and foundcornerflag <> "1":
+			#if we are on partnumber 2 or later, we can't write until we see ;LAYER:0
+			#we must get rid of suffix
+			if suffixactive == 0:
+				if prefixactive == 0:
+					#writeline after adjusting the zvariable
+					if line.find("E-4.5") == -1:
+						if (line.find(";") < line.find("E")) and line.find(";") <> -1:
+
+											sw.write(line)
+						else:	
+							if line.find("E") <> -1 and bodyactive == 1:
+								#take the e and subtract the e offset
+															eEdit = line[line.find("E") + 1: len(line) - 1]
+															line = line[0: line.find("E") + 1]
+								eEdit = str(float(eEdit) - float(ongoingeoffset))
+								sw.write(line + str(eEdit) + ";eEdit is  " + str(float(eEdit)) + ", ongoing offset is "+ str(float(ongoingeoffset))  + "\n")
+							else:
+								sw.write(line)
+							#end if
+						#end if
+					#end if
+				#end if
+			#end if
+		#end if
+	#End For Loop
+#end with

@@ -1,0 +1,8 @@
+@echo off
+Setlocal EnableDelayedExpansion
+:backup
+for /f "tokens=*" %%a in ('dir "C:\3dprinting\stlqueue\" /a-d /b /o-d') do set something=%%a
+pscp -scp -pw laptop1 "C:\3dprinting\stlqueue\%something%" pi@192.168.2.50:~/3dprinting/stlqueue/
+move "C:\3dprinting\stlqueue\%something%" "C:\3dprinting\stlqueuearchive\%something%"
+timeout 15
+goto backup

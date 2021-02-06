@@ -1,0 +1,126 @@
+c:#!/usr/bin/env bash
+
+#variables
+limit=1
+ipaddress=192.168.2.51
+
+#this must must start with a space. does not end with a space. must be "" if not filled out
+raftsettings=" -s raftAirGap=0 -s raftAirGapLayer0=220 -s raftBaseLinewidth=1000 -s raftBaseSpeed=20 -s raftBaseThickness=300 -s raftFanSpeed=0 -s raftInterfaceLineSpacing=800 -s raftInterfaceLineWidth=400 -s raftInterfaceThickness=300 -s raftLineSpacing=3000 -s raftMargin=3000 -s raftSurfaceLayers=2 -s raftSurfaceLineSpacing=400 -s raftSurfaceLineWidth=400 -s raftSurfaceSpeed=20 -s raftSurfaceThickness=300"
+#raftsettings=""
+
+#if you change the layerhiehgt, make sure to change the value in teh slicer!!
+layerheight=.3
+retractionamount=4500
+
+#layerthickness is 200 for .2 and 300 for .3
+#layerthickness=$layerheight * 1000
+#echo "Layerthickness is "$layerthickness
+
+#sys.argv[0] is first variable, sys.argv[1] is second
+
+#file locations
+LOGFILE=/home/pi/3dprinting/logs
+counterfile=/home/pi/3dprinting/counter
+source=~/3dprinting/stlqueue/
+gcodedest=~/3dprinting/gcodetocopy/
+archivedest=~/3dprinting/stlqueuearchive/
+alteredgcodedest=~/3dprinting/gcodetotransfer/
+
+while true ;do
+
+	sleep 4
+	limit=1
+	#check for stls to slice
+	if test "$(ls -A "$source")";
+	then
+		while IFS= read -r -d $'\0' line ; do
+			file="${line#* }"
+
+			if [ $file != '/home/pi/3dprinting/stlqueue/' ] && [ $file != '/home/pi/3dprinting/stlqueue/placeholder' ]
+			then
+				echo "inside loop"
+				#setting the unique counter for the gcode and stl
+				counter=$(cat "$counterfile")
+				newcounter="$(($counter + 1))"
+				sudo rm $counterfile
+				sudo echo "$newcounter" >> $counterfile
+				sudo chmod 777 $counterfile
+
+				sudo echo -e "$(date "+%m%d%Y %T") : Slicing: " "$file with identifier $counter"  >> $LOGFILE 2>&1
+
+				#set filename of gcode destination
+				gcodedestination=$gcodedest"output"$counter".gcode"
+
+				sudo echo -e "$(date "+%m%d%Y %T") : Slicing: " "$file with partnumber $counter to "$gcodedestination  >> $LOGFILE 2>&1
+
+				#slice file and put it in archivedest
+				#if part number = 1
+				if [ $counter == 1 ];
+				then
+					#below is the working raft code
+					/home/pi/cura_engine -v -p -s coolHeadLift=0 -s downSkinCount=2 -s enableCombing=1 -s extrusionWidth=400.0 -s fanFullOnLayerNr=1 -s fanSpeedMax=100 -s fanSpeedMin=100 -s filamentDiameter=1750 -s filamentFlow=100 -s fixHorrible=1 -s gcodeFlavor=0 -s infillOverlap=15 -s infillSpeed=50 -s initialLayerSpeed=20 -s initialLayerThickness=200 -s initialSpeedupLayers=4 -s inset0Speed=50 -s insetCount=2 -s insetXSpeed=50 -s layer0extrusionWidth=400 -s layerThickness=200 -s minimalExtrusionBeforeRetraction=20 -s minimalFeedrate=10 -s minimalLayerTime=5 -s moveSpeed=100 -s multiVolumeOverlap=150 -s objectSink=0 -s postSwitchExtruderCode= -s posx=60000 -s posy=60000 -s preSwitchExtruderCode= -s printSpeed=50 -s raftAirGap=0 -s raftAirGapLayer0=220 -s raftBaseLinewidth=1000 -s raftBaseSpeed=20 -s raftBaseThickness=300 -s raftFanSpeed=0 -s raftInterfaceLineSpacing=800 -s raftInterfaceLinewidth=400 -s raftInterfaceThickness=300 -s raftLineSpacing=3000 -s raftMargin=3000 -s raftSurfaceLayers=2 -s raftSurfaceLineSpacing=400 -s raftSurfaceLinewidth=400 -s raftSurfaceSpeed=20 -s raftSurfaceThickness=300 -s retractionAmount=$retractionamount -s retractionAmountExtruderSwitch=16500 -s retractionMinimalDistance=1500 -s retractionSpeed=40 -s retractionZHop=0 -s skinSpeed=50 -s skirtDistance=0 -s skirtLineCount=0 -s sparseInfillLineDistance=40000 -s supportAngle=-1 -s supportEverywhere=0 -s supportExtruder=-1 -s supportLineDistance=2666 -s supportType=1 -s supportXYDistance=700 -s supportZDistance=150 -s upSkinCount=2 -o "$gcodedestination" "$file"
+					
+					#below is what i had working without the raft settings part
+					#/home/pi/cura_engine -v -p -s coolHeadLift=0 -s downSkinCount=2 -s enableCombing=1 -s extrusionWidth=400.0 -s fanFullOnLayerNr=1 -s fanSpeedMax=100 -s fanSpeedMin=100 -s filamentDiameter=1750 -s filamentFlow=100 -s fixHorrible=1 -s gcodeFlavor=0 -s infillOverlap=15 -s infillSpeed=50 -s initialLayerSpeed=20 -s initialLayerThickness=300 -s initialSpeedupLayers=4 -s inset0Speed=50 -s insetCount=2 -s insetXSpeed=50 -s layer0extrusionWidth=400 -s layerThickness=300 -s minimalExtrusionBeforeRetraction=20 -s minimalFeedrate=10 -s minimalLayerTime=5 -s moveSpeed=100 -s multiVolumeOverlap=150 -s objectSink=0 -s postSwitchExtruderCode= -s posx=60000 -s posy=60000 -s preSwitchExtruderCode= -s printSpeed=50 -s$raftSettings retractionAmount=$retractionamount -s retractionAmountExtruderSwitch=16500 -s retractionMinimalDistance=1500 -s retractionSpeed=40 -s retractionZHop=0 -s skinSpeed=50 -s skirtDistance=0 -s skirtLineCount=0 -s sparseInfillLineDistance=4000 -s supportAngle=-1 -s supportEverywhere=0 -s supportExtruder=-1 -s supportLineDistance=2666 -s supportType=1 -s supportXYDistance=700 -s supportZDistance=150 -s upSkinCount=2 -o "$gcodedestination" "$file"
+					
+					#/home/pi/cura_engine -v -p -s coolHeadLift=0 -s downSkinCount=2 -s enableCombing=1 -s extrusionWidth=400.0 -s fanFullOnLayerNr=1 -s fanSpeedMax=100 -s fanSpeedMin=100 -s filamentDiameter=1750 -
+					sudo echo -e "$(date "+%m%d%Y %T") : This is noted as part number 1"  >> $LOGFILE 2>&1
+
+					wait
+
+					#gcode is at gcode destination, $gcodedest"output"$counter".gcode
+					sudo echo -e "$(date "+%m%d%Y %T") : Slicing has completed to "$gcodedestination  >> $LOGFILE 2>&1
+
+					python /home/pi/3dprinting/gcodeManipulator3.py $counter $gcodedestination $layerheight $retractionamount
+					wait
+
+					sudo echo -e "$(date "+%m%d%Y %T") : Gcode manipulator has completed and exists at ~/3dprinting/gcodetotransfer/ as output"$counter".gcode"  >> $LOGFILE 2>&1
+
+				else
+				#if part number = 2 or more:
+				#layerthickness = 200 for .2 and 300 for .3
+				#change sparseinfill line distance from 400,000 to 4000 for supports
+					/home/pi/cura_engine -v -p -s coolHeadLift=0 -s downSkinCount=2 -s enableCombing=1 -s extrusionWidth=400.0 -s fanFullOnLayerNr=1 -s fanSpeedMax=100 -s fanSpeedMin=100 -s filamentDiameter=1750 -s filamentFlow=100 -s fixHorrible=1 -s gcodeFlavor=0 -s infillOverlap=15 -s infillSpeed=50 -s initialLayerSpeed=20 -s initialLayerThickness=200 -s initialSpeedupLayers=4 -s inset0Speed=50 -s insetCount=2 -s insetXSpeed=50 -s layer0extrusionWidth=400 -s layerThickness=200 -s minimalExtrusionBeforeRetraction=20 -s minimalFeedrate=10 -s minimalLayerTime=5 -s moveSpeed=100 -s multiVolumeOverlap=150 -s objectSink=0 -s postSwitchExtruderCode= -s posx=60000 -s posy=60000 -s preSwitchExtruderCode= -s printSpeed=50 -s retractionAmount=$retractionamount -s retractionAmountExtruderSwitch=16500 -s retractionMinimalDistance=1500 -s retractionSpeed=40 -s retractionZHop=0 -s skinSpeed=50 -s skirtDistance=0 -s skirtLineCount=0 -s sparseInfillLineDistance=40000 -s supportAngle=-1 -s supportEverywhere=0 -s supportExtruder=-1 -s supportLineDistance=2666 -s supportType=1 -s supportXYDistance=700 -s supportZDistance=150 -s upSkinCount=2 -o "$gcodedestination" "$file"
+					wait
+					sudo echo -e "$(date "+%m%d%Y %T") : Slicing has completed to "$gcodedestination  >> $LOGFILE 2>&1
+					sudo echo -e "$(date "+%m%d%Y %T") : This is noted as part number 2 or greater"  >> $LOGFILE 2>&1
+
+
+					python /home/pi/3dprinting/gcodeManipulator3.py $counter $gcodedestination $layerheight $retractionamount
+					wait
+
+					sudo echo -e "$(date "+%m%d%Y %T") : Gcode manipulator has completed and exists at ~/3dprinting/gcodetotransfer/ as output"$counter".gcode"  >> $LOGFILE 2>&1
+
+				fi
+
+				sudo echo -e "$(date "+%m%d%Y %T") : Slicing Complete"  >> $LOGFILE 2>&1
+
+				scp $alteredgcodedest"output"$counter".gcode"  "pi@"$ipaddress":~/3dprinting/gcodequeue/output"$counter".gcode"
+				sudo echo -e "$(date "+%m%d%Y %T") scp from "$alteredgcodedest"output"$counter".gcode to pi@"$ipaddress":~/3dprinting/gcodequeue/output"$counter".gcode"  >> $LOGFILE 2>&1
+
+				sudo echo -e "$(date "+%m%d%Y %T") : copied gcode to other pi @ $ipaddress:"  >> $LOGFILE 2>&1
+
+				#archive stl
+				cp "$file" "$archivedest""stl"$counter".stl"
+				rm "$file"
+
+			else
+				limit=2
+				echo "It is ignoring the directory path itself, $file, limit = $limit"
+			fi
+			#if [ $file == placeholder ];
+			#then
+			#	limit=2
+			#fi 
+			let limit-=1
+			[[ $limit -le 0 ]] && break
+
+		done < <(find "$source" -maxdepth 1 -printf '%T@ %p\0' \
+			2>/dev/null | sort -z -n)
+
+		sudo echo -e "$(date "+%m%d%Y %T") : bashslicer.sh has completed"  >> $LOGFILE 2>&1
+
+	else
+		sudo echo -e "$(date "+%m%d%Y %T") : N STLs were Found, bashslicer.sh has completed" in $source >> $LOGFILE 2>&1
+	fi
+done

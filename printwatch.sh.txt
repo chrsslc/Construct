@@ -1,0 +1,118 @@
+#!/bin/bash
+#use nohup bash printWatch.sh & to start service
+#use ps -fu pi to see if it is running
+#use pkill -f printWatch.s to kill it
+#variables
+limit=1
+bandwidth_limit="1000" #prevents stalling on large files; kbit/s
+
+#file locations
+octoprintqueue=~/.octoprint/uploads/GcodeQueue/
+octoprintqueuearchive=~/.octoprint/uploads/GcodeQueueArchive/
+gcodequeue=~/3dprinting/gcodequeue/
+gcodearchive=~/3dprinting/gcodequeuearchive/
+LOGFILE=/home/pi/3dprinting/logs
+alivecounter=1
+
+while true ;do
+
+	sleep 2
+
+	status=$(8status)
+	alivecounter=alivecounter+1
+	if [ alivecounter == 20 ]; then
+		sudo echo -e "$(date "+%m%d%Y %T") : Still running" >> $LOGFILE 2>&1
+		alivecounter=1
+	fi
+	if [ "$status" == "Operational" ]; then
+		sudo echo "it just said that $status is equal to  Operational"	       	
+		#archive any job that may be in the selection
+		#use 8getjob to extract filename
+		sudo echo -e "$(date "+%m%d%Y %T") : determined operational" >> $LOGFILE 2>&1
+		
+		#send gcode to printer if there is one to send
+		if test "$(ls -A "$gcodequeue")";
+		then
+			sudo echo "inside file structure 1"
+			while IFS= read -r -d $'\0' line ; do
+				file="${line#* }"
+				sudo echo "Inside file structure2"
+				sudo echo "file is "$file
+				if [ $file != '/home/pi/3dprinting/gcodequeue/' ]
+				then
+					#filename="${file#'/home/pi/3dprinting/gcodequeue/'}"
+					
+					#wait(python ~/3dprinting/gcodeManipulator.py $filename)
+
+					#there is at least one file
+					sudo echo -e "$(date "+%m%d%Y %T") : Printing: "$file  >> $LOGFILE 2>&1
+
+					#perform gcode maniuplation using python job
+
+
+					#print $file and put it in archive
+					#load the job
+					#wait[scp -C -l "$bandwidth_limit" "$file" "$GcodeQueue"]
+					
+					#extract filename from /home/pi/3dprinting/gcodequeue/{filename}
+			
+					#select filename from  octoprintqueue
+					#8fselect $octoprintqueue$filename
+					status=$(8status)
+					if [ $status == "Operational" ]
+					then
+						octocmd print $file
+						sleep 6
+						while true ;do
+							if [ $status != "Printing" ]
+							then
+								sudo echo -e "$(date "+%m%d%Y %T") : it failed to print $file, status was $status. retrying." >> $LOGFILE 2>&1
+								octocmd print $file
+								wait
+								sleep 5
+								status=$(8status)
+							else
+								break
+								sudo echo -e "$(date "+%m%d%Y %T") : it succesfully sent the file to the printer after retrying. Status was $status" >> $LOGFILE 2>&1
+							fi
+						done
+						var=${file:31}
+						sudo echo -e "$(date "+%m%d%Y %T") : moving $file to $gcodearchive$var." >> $LOGFILE 2>&1
+						mv $file $gcodearchive$var
+					else
+						sudo echo -e "$(date "+%m%d%Y %T") : tried to print: "$file" but couldnt because print is NOT OPERATIONAL. This likely is due to infinite looping inside printWatch"  >> $LOGFILE 2>&1
+	
+					fi
+
+					#use octocmd print to print 
+					
+
+				else
+					limit=2
+				fi
+
+				let limit-=1
+				[[ $limit -le 0 ]] && break
+
+			done < <(find "$gcodequeue" -maxdepth 1 -printf '%T@ %p\0' \
+				2>/dev/null | sort -z -n)
+
+			#sudo echo -e "$(date "+%m%d%Y %T") : printWatch.sh has completed" >> $LOGFILE 2>&1
+
+		else
+			sudo echo -e "$(date "+%m%d%Y %T") : printWatch.sh has completed, no more files have been found for printing" >> $LOGFILE 2>&1
+		fi
+		sudo echo "still alive"
+	#elif [ $status=="Closed" ]
+	#then
+	#elif [ $status=="Connecting" ]
+	#then
+	#elif [ $status=="Printing" ]
+	#then
+	#elif [ $status=="Paused" ]
+	#then
+	else
+		sudo echo "still alive"
+	fi
+
+done

@@ -1,0 +1,15 @@
+03012018 17:19:47 : determined operational
+03012018 17:19:47 : printWatch.sh has completed, no more files have been found for printing
+03012018 17:19:50 : determined operational
+03012018 17:19:50 : Printing: /home/pi/3dprinting/gcodequeue/output1.gcode
+03012018 17:19:59 : it failed to print /home/pi/3dprinting/gcodequeue/output1.gcode, status was Operational. retrying.
+03012018 17:20:05 : moving /home/pi/3dprinting/gcodequeue/output1.gcode to /home/pi/3dprinting/gcodequeuearchive/output1.gcode.
+03012018 17:28:11 : determined operational
+03012018 17:28:12 : Printing: /home/pi/3dprinting/gcodequeue/output2.gcode
+03012018 17:28:21 : it failed to print /home/pi/3dprinting/gcodequeue/output2.gcode, status was Operational. retrying.
+03012018 17:28:27 : moving /home/pi/3dprinting/gcodequeue/output2.gcode to /home/pi/3dprinting/gcodequeuearchive/output2.gcode.
+03012018 17:34:35 : determined operational
+03022018 11:30:18 : it failed to print /home/pi/3dprinting/gcodequeue/output3.gcode, status was Closed. retrying.
+03022018 11:30:24 : it failed to print /home/pi/3dprinting/gcodequeue/output3.gcode, status was Closed. retrying.
+03022018 11:30:30 : it failed to print /home/pi/3dprinting/gcodequeue/output3.gcode, status was Closed. retrying.
+03022018 11:30:36 : it failed to print /home/pi/3dprinting/gcodequeue/output3.gcode, status was Closed. retrying.
